@@ -115,5 +115,5 @@ class ModelA:
         avg_psnr = total_psnr / count
         avg_ssim = total_ssim / count
 
-        print(f"✅ Test PSNR: {avg_psnr:.2f}, SSIM: {avg_ssim:.4f}")
+        # print(f"✅ Test PSNR: {avg_psnr:.2f}, SSIM: {avg_ssim:.4f}")
         return avg_psnr  # You can switch to SSIM if preferred

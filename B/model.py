@@ -258,5 +258,5 @@ class ModelB:
         avg_psnr = total_psnr / len(test_lr_images)
         avg_ssim = total_ssim / len(test_lr_images)
 
-        print(f"✅ B-Test PSNR: {avg_psnr:.2f}, SSIM: {avg_ssim:.4f}")
+        # print(f"✅ B-Test PSNR: {avg_psnr:.2f}, SSIM: {avg_ssim:.4f}")
         return round(avg_psnr, 2)  # Return test PSNR
