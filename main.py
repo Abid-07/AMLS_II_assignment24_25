@@ -13,45 +13,44 @@ def preprocess_image(image_path, target_size):
 
 def data_preprocessing(batch_size=4):
     # -------------------------------
-    # 1. TRAIN + VAL SETUP
+    # Task A: Bicubic (for Enhanced CNN)
     # -------------------------------
-    hr_path = "./Datasets/DIV2K_train_HR/*.png"
-    lr_path = "./Datasets/DIV2K_train_LR_bicubic/X2/*.png"
+    hr_path_A = "./Datasets/DIV2K_train_HR/*.png"
+    lr_path_A = "./Datasets/DIV2K_train_LR_bicubic/X2/*.png"
 
-    lr_size = (256, 256)
-    hr_size = (512, 512)
+    hr_images_A = [preprocess_image(p, (512, 512)) for p in sorted(glob.glob(hr_path_A))[:200]]
+    lr_images_A = [preprocess_image(p, (256, 256)) for p in sorted(glob.glob(lr_path_A))[:200]]
 
-    hr_image_paths = sorted(glob.glob(hr_path))[:200]
-    lr_image_paths = sorted(glob.glob(lr_path))[:200]
-
-    hr_images = [preprocess_image(path, hr_size) for path in hr_image_paths]
-    lr_images = [preprocess_image(path, lr_size) for path in lr_image_paths]
-
-    hr_images = np.array(hr_images)
-    lr_images = np.array(lr_images)
-
-    train_lr, val_lr, train_hr, val_hr = train_test_split(
-        lr_images, hr_images, test_size=0.25, random_state=42
+    train_lr_A, val_lr_A, train_hr_A, val_hr_A = train_test_split(
+        lr_images_A, hr_images_A, test_size=0.25, random_state=42
     )
+    train_dataset_A = tf.data.Dataset.from_tensor_slices((train_lr_A, train_hr_A)).batch(batch_size)
+    val_dataset_A = tf.data.Dataset.from_tensor_slices((val_lr_A, val_hr_A)).batch(batch_size)
 
-    train_dataset = tf.data.Dataset.from_tensor_slices((train_lr, train_hr)).batch(batch_size)
-    val_dataset = tf.data.Dataset.from_tensor_slices((val_lr, val_hr)).batch(batch_size)
+    test_lr_A = [preprocess_image(p, (256, 256)) for p in sorted(glob.glob("./Datasets/DIV2K_valid_LR_bicubic/X2/*.png"))]
+    test_hr_A = [preprocess_image(p, (512, 512)) for p in sorted(glob.glob("./Datasets/DIV2K_valid_HR/*.png"))]
+    test_dataset_A = tf.data.Dataset.from_tensor_slices((test_lr_A, test_hr_A)).batch(batch_size)
 
     # -------------------------------
-    # 2. TEST SETUP
+    # Task B: Unknown (for ESRGAN)
     # -------------------------------
-    test_lr_path = sorted(glob.glob("./Datasets/DIV2K_valid_LR_bicubic/X2/*.png"))
-    test_hr_path = sorted(glob.glob("./Datasets/DIV2K_valid_HR/*.png"))
+    hr_path_B = "./Datasets/DIV2K_train_HR/*.png"
+    lr_path_B = "./Datasets/DIV2K_train_LR_unknown/X2/*.png"
 
-    test_lr = [preprocess_image(path, lr_size) for path in test_lr_path]
-    test_hr = [preprocess_image(path, hr_size) for path in test_hr_path]
+    hr_images_B = [preprocess_image(p, (512, 512)) for p in sorted(glob.glob(hr_path_B))[:200]]
+    lr_images_B = [preprocess_image(p, (256, 256)) for p in sorted(glob.glob(lr_path_B))[:200]]
 
-    test_lr = np.array(test_lr)
-    test_hr = np.array(test_hr)
+    train_lr_B, val_lr_B, train_hr_B, val_hr_B = train_test_split(
+        lr_images_B, hr_images_B, test_size=0.25, random_state=42
+    )
+    train_dataset_B = tf.data.Dataset.from_tensor_slices((train_lr_B, train_hr_B)).batch(batch_size)
+    val_dataset_B = tf.data.Dataset.from_tensor_slices((val_lr_B, val_hr_B)).batch(batch_size)
 
-    test_dataset = tf.data.Dataset.from_tensor_slices((test_lr, test_hr)).batch(batch_size)
+    test_lr_B = [preprocess_image(p, (256, 256)) for p in sorted(glob.glob("./Datasets/DIV2K_valid_LR_unknown/X2/*.png"))]
+    test_hr_B = [preprocess_image(p, (512, 512)) for p in sorted(glob.glob("./Datasets/DIV2K_valid_HR/*.png"))]
+    test_dataset_B = tf.data.Dataset.from_tensor_slices((test_lr_B, test_hr_B)).batch(batch_size)
 
-    return train_dataset, val_dataset, test_dataset
+    return (train_dataset_A, val_dataset_A, test_dataset_A), (train_dataset_B, val_dataset_B, test_dataset_B)
 
 
 # ====================== Import Models ======================
@@ -59,12 +58,12 @@ from A.model import ModelA
 from B.model import ModelB
 
 # ====================== Data preprocessing =================
-data_train, data_val, data_test = data_preprocessing(batch_size=4)
+(data_train_A, data_val_A, data_test_A), (data_train_B, data_val_B, data_test_B) = data_preprocessing(batch_size=4)
 
 # ====================== Task A =============================
 model_A = ModelA()
-acc_A_train = model_A.train(data_train, data_val)
-acc_A_test = model_A.test(data_test)
+acc_A_train = model_A.train(data_train_A, data_val_A)
+acc_A_test = model_A.test(data_test_A)
 
 # Clean up memory/GPU
 import gc
@@ -73,8 +72,12 @@ tf.keras.backend.clear_session()
 
 # ====================== Task B =============================
 model_B = ModelB()
-acc_B_train = model_B.train(data_train, data_val, epochs=50)
-acc_B_test = model_B.test(data_test)
+acc_B_train = model_B.train(data_train_B, data_val_B)
+acc_B_test = model_B.test(data_test_B)
+
+# Clean up memory/GPU
+gc.collect()
+tf.keras.backend.clear_session()
 
 # ====================== Final Results ======================
 print('TA:{},{};TB:{},{};'.format(acc_A_train, acc_A_test, acc_B_train, acc_B_test))
